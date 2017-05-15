@@ -1,19 +1,58 @@
 var reshapedSettings = reshapedSettings || (function() {
     'use strict';
     
-    var version = '0.2.0',
-    sheetVersion = '2.2.19+',
+    var version = '0.4.0',
+    sheetVersion = '10.1.3+',
     defaultSettings = {
-        'output_option': '@{output_to_gm}', // can be @{output_to_gm} or @{output_to_all}
-        'death_save_output_option': '@{output_to_gm}', // can be @{output_to_gm} or @{output_to_all}
-        'initiative_output_option': '@{output_to_gm}', // can be @{output_to_gm} or @{output_to_all}
-        'show_character_name': '@{show_character_name_yes}', // can be @{show_character_name_yes} or @{show_character_name_no}
-        'roll_setting': '@{roll_2}', // can be @{roll_1}, @{roll_advantage}, @{roll_disadvantage}, or @{roll_2}
+        'output_option': '/w GM', // can be '' or '/w GM'
+        'death_save_output_option': '/w GM', // can be @{output_option} or '/w GM' or ''
+        'initiative_output_option': '/w GM', // can be @{output_option} or '/w GM' or ''
+        'show_character_name': '{{show_character_name=1}}', // can be '' or {{show_character_name=1}}
+        'initiative_roll': '@{shaped_d20}', // can be @{normal_initiative}, @{advantage_on_initiative}, or @{disadvantage_on_initiative}
+        'initiative_to_tracker': '1', // can be 0 or 1
+        'initiative_tie_breaker': '0', // can be 0 or [[@{initiative} / 100]][tie breaker]
+        'attacks_vs_target_ac': '0', // can be 0 or 1
+        'attacks_vs_target_name': '0', // can be 0 or 1
+        'edit_mode': '0', // can be 0 or on
+        'saving_throws_half_proficiency': '0', // can be 0 or on
+        'hide_ability_checks': '0', // can be 0 or {{hide_ability_checks=1}}
+        'hide_saving_throws': '0', // can be 0 or {{hide_saving_throws=1}}
+        'hide_attack': '0', // can be 0 or {{hide_attack=1}}
+        'hide_damage': '0', // can be 0 or {{hide_damage=1}}
+        'hide_saving_throw_dc': '0', // can be 0 or {{hide_saving_throw_dc=1}}
+        'hide_saving_throw_failure': '0', // can be 0 or {{hide_saving_throw_failure=1}}
+        'hide_saving_throw_success': '0', // can be 0 or {{hide_saving_throw_success=1}}
+        'hide_recharge': '0', // can be 0 or {{hide_recharge=1}}
+        'hide_spell_content': '0', // can be 0 or {{hide_spell_content=1}}
+        'hide_action_freetext': '0', // can be 0 or {{hide_freetext=1}}
+        'shaped_d20': 'd20', // whatever will be rolled instead of a d20
+        'roll_setting': '{{roll2=[[d20@{d20_mod}' // can be {{ignore=[[0 OR  adv {{ignore=[[0 OR dis {{ignore=[[0 OR {{roll2=[[d20@{d20_mod}
+
+    },
+    defaultSettingsAlt = {
+        'output_option': '', // can be '' or '/w GM'
+        'death_save_output_option': '', // can be @{output_option} or '/w GM' or ''
+        'initiative_output_option': '', // can be @{output_option} or '/w GM' or ''
+        'show_character_name': '{{show_character_name=1}}', // can be '' or {{show_character_name=1}}
         'initiative_roll': '@{normal_initiative}', // can be @{normal_initiative}, @{advantage_on_initiative}, or @{disadvantage_on_initiative}
-        'initiative_tie_breaker': '', // can be @{initiative_tie_breaker_var} or empty ('')
-        'initiative_to_tracker': '@{initiative_to_tracker_yes}', // can be @{initiative_to_tracker_yes} or @{initiative_to_tracker_no}
-        'attacks_vs_target_ac': '@{attacks_vs_target_ac_no}', // can be @{attacks_vs_target_ac_yes} or @{attacks_vs_target_ac_no}
-        'attacks_vs_target_name': '@{attacks_vs_target_name_no}' // can be @{attacks_vs_target_name_yes} or @{attacks_vs_target_name_no}
+        'initiative_to_tracker': '@{selected|initiative_formula} &{tracker}', // can be @{initiative_formula} (NO) or @{selected|initiative_formula} &{tracker} (YES)
+        'initiative_tie_breaker': '0', // can be 0 or [[@{initiative} / 100]][tie breaker]
+        'attacks_vs_target_ac': '', // can be '' or [[@{target|AC}]]
+        'attacks_vs_target_name': '', // can be '' or @{target|token_name}
+        'edit_mode': '0', // can be 0 or on
+        'saving_throws_half_proficiency': '0', // can be 0 or on
+        'hide_ability_checks': '0', // can be 0 or {{hide_ability_checks=1}}
+        'hide_saving_throws': '0', // can be 0 or {{hide_saving_throws=1}}
+        'hide_attack': '0', // can be 0 or {{hide_attack=1}}
+        'hide_damage': '0', // can be 0 or {{hide_damage=1}}
+        'hide_saving_throw_dc': '0', // can be 0 or {{hide_saving_throw_dc=1}}
+        'hide_saving_throw_failure': '{{hide_saving_throw_failure=1}}', // can be 0 or {{hide_saving_throw_failure=1}}
+        'hide_saving_throw_success': '{{hide_saving_throw_success=1}}', // can be 0 or {{hide_saving_throw_success=1}}
+        'hide_recharge': '{{hide_recharge=1}}', // can be 0 or {{hide_recharge=1}}
+        'hide_spell_content': '{{hide_spell_content=1}}', // can be 0 or {{hide_spell_content=1}}
+        'hide_action_freetext': '{{hide_freetext=1}}', // can be 0 or {{hide_freetext=1}}
+        'shaped_d20': '10d1cs0cf0' // whatever will be rolled instead of a d20
+//        'roll_setting': '{{ignore=[[0', // can be {{ignore=[[0 OR  adv {{ignore=[[0 OR dis {{ignore=[[0 OR {{roll2=[[d20@{d20_mod}
     },
     cleanExclusionList = ['version', 'is_npc', 'tab', 'edit_mode'],
         
@@ -22,7 +61,7 @@ var reshapedSettings = reshapedSettings || (function() {
     },
 
     escapeAttr = function(text) {
-        return text.replace("{", "&#123;").replace("@", "&#64;").replace("}", "&#125;")
+        return text.replace("{", "{").replace("@", "@").replace("}", "}")
     },
     
     printHelp = function(who) {
@@ -145,12 +184,21 @@ var reshapedSettings = reshapedSettings || (function() {
                         if (characterId) {
                             if (opts.clean) {
                                 cleanCharacter(msg.who, characterId);
+                            } 
+                            if (opts.alt) {
+                                character = getObj("character", characterId);
+                                for (var s in defaultSettingsAlt) {
+                                    setting = defaultSettingsAlt[s];
+                                    attr = myGetAttrByName(character.id, s);
+                                    attr.setWithWorker({"current": setting});
+                                    //log("Setting "+s+" to "+setting+" in "+JSON.stringify(attr));
+                                }
                             } else {
                                 character = getObj("character", characterId);
                                 for (var s in defaultSettings) {
                                     setting = defaultSettings[s];
                                     attr = myGetAttrByName(character.id, s);
-                                    attr.set("current", setting);
+                                    attr.setWithWorker({"current": setting});
                                     //log("Setting "+s+" to "+setting+" in "+JSON.stringify(attr));
                                 }
                                 outputUpdate(msg.who, "Updated character settings.", character.get("name"));
